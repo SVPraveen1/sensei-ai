@@ -19,4 +19,4 @@ export default async function DashboardPage() {
       <DashboardView insights={insights} />
     </div>
   );
-}
+} 
