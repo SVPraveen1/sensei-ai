@@ -2,12 +2,16 @@
   "name": "sensai",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:industries": "node scripts/seed-industries.js",
+    "update:insights": "node scripts/update-insights.js",
+    "trigger:insights": "node scripts/trigger-update.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.11.3",
