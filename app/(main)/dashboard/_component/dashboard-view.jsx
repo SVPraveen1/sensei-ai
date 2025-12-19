@@ -115,15 +115,13 @@ const DashboardView = ({ insights }) => {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Demand Level</CardTitle>
             <BriefcaseIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
+          </CardHeader> 
             <div className="text-2xl font-bold">{insights.demandLevel}</div>
             <div
               className={`h-2 w-full rounded-full mt-2 ${getDemandLevelColor(
                 insights.demandLevel
               )}`}
             />
-          </CardContent>
         </Card>
 
         <Card>
