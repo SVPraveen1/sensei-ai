@@ -85,22 +85,6 @@ Sensai AI is a cutting-edge learning platform that harnesses artificial intellig
 
   
 
-### **AI/ML:**
-
-- TensorFlow
-
-- Python
-
-- scikit-learn
-
-- Natural Language Processing (NLP)
-
-  
-
----
-
-  
-
 ## 🏁 Getting Started
 
   
