@@ -17,7 +17,7 @@ import {
   TrendingDown,
   Brain,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import {
   Card,
   CardContent,
@@ -67,16 +67,22 @@ const DashboardView = ({ insights }) => {
   const outlookColor = getMarketOutlookInfo(insights.marketOutlook).color;
 
   // Format dates using date-fns
-  const lastUpdatedDate = format(new Date(insights.lastUpdated), "dd/MM/yyyy");
+  const lastUpdatedDistance = formatDistanceToNow(
+    new Date(insights.lastUpdated),
+    { addSuffix: true }
+  );
   const nextUpdateDistance = formatDistanceToNow(
     new Date(insights.nextUpdate),
     { addSuffix: true }
   );
 
+  // Determine if next update is in the past or future
+  const isNextUpdatePast = new Date(insights.nextUpdate) < new Date();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <Badge variant="outline">Last updated: {lastUpdatedDate}</Badge>
+        <Badge variant="outline">Updated {lastUpdatedDistance}</Badge>
       </div>
 
       {/* Market Overview Cards */}
@@ -91,7 +97,9 @@ const DashboardView = ({ insights }) => {
           <CardContent>
             <div className="text-2xl font-bold">{insights.marketOutlook}</div>
             <p className="text-xs text-muted-foreground">
-              Next update {nextUpdateDistance}
+              {isNextUpdatePast
+                ? "Update due - refreshing soon"
+                : `Next update ${nextUpdateDistance}`}
             </p>
           </CardContent>
         </Card>
@@ -105,7 +113,7 @@ const DashboardView = ({ insights }) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {insights.growthRate.toFixed(1)}%
+              {(insights.growthRate ?? 0).toFixed(1)}%
             </div>
             <Progress value={insights.growthRate} className="mt-2" />
           </CardContent>

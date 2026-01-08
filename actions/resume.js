@@ -1,54 +1,38 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getCurrentUser } from "@/lib/db-utils";
+import { generateWithRetry } from "@/lib/ai";
 import { revalidatePath } from "next/cache";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+/**
+ * Save or update the user's resume
+ */
 export async function saveResume(content) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  const { user } = await getCurrentUser({ includeInsight: false });
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
+  const resume = await db.resume.upsert({
+    where: {
+      userId: user.id,
+    },
+    update: {
+      content,
+    },
+    create: {
+      userId: user.id,
+      content,
+    },
   });
 
-  if (!user) throw new Error("User not found");
-
-  try {
-    const resume = await db.resume.upsert({
-      where: {
-        userId: user.id,
-      },
-      update: {
-        content,
-      },
-      create: {
-        userId: user.id,
-        content,
-      },
-    });
-
-    revalidatePath("/resume");
-    return resume;
-  } catch (error) {
-    console.error("Error saving resume:", error);
-    throw new Error("Failed to save resume");
-  }
+  revalidatePath("/resume");
+  return resume;
 }
 
+/**
+ * Get the current user's resume
+ */
 export async function getResume() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) throw new Error("User not found");
+  const { user } = await getCurrentUser({ includeInsight: false });
 
   return await db.resume.findUnique({
     where: {
@@ -57,42 +41,53 @@ export async function getResume() {
   });
 }
 
+/**
+ * Improve resume content using AI
+ * Enhanced prompt for better, more impactful improvements
+ */
 export async function improveWithAI({ current, type }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  const { user } = await getCurrentUser();
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-    include: {
-      industryInsight: true,
-    },
-  });
+  const currentYear = new Date().getFullYear();
 
-  if (!user) throw new Error("User not found");
+  // Get industry-specific context if available
+  const industryContext = user.industryInsight
+    ? `\nIndustry trends: ${user.industryInsight.keyTrends
+        ?.slice(0, 3)
+        .join(", ")}\nIn-demand skills: ${user.industryInsight.topSkills
+        ?.slice(0, 5)
+        .join(", ")}`
+    : "";
 
   const prompt = `
-    As an expert resume writer, improve the following ${type} description for a ${user.industry} professional.
-    Make it more impactful, quantifiable, and aligned with industry standards.
-    Current content: "${current}"
+You are an expert resume writer and career coach specializing in the ${user.industry} industry.
 
-    Requirements:
-    1. Use action verbs
-    2. Include metrics and results where possible
-    3. Highlight relevant technical skills
-    4. Keep it concise but detailed
-    5. Focus on achievements over responsibilities
-    6. Use industry-specific keywords
-    
-    Format the response as a single paragraph without any additional text or explanations.
-  `;
+Improve the following ${type} description to be more impactful and ATS-friendly:
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const improvedContent = response.text().trim();
-    return improvedContent;
-  } catch (error) {
-    console.error("Error improving content:", error);
-    throw new Error("Failed to improve content");
+ORIGINAL:
+"${current}"
+
+CONTEXT:
+- Industry: ${user.industry}
+- Current Year: ${currentYear}${industryContext}
+
+REQUIREMENTS:
+1. Start with a strong action verb (Led, Developed, Implemented, Optimized, etc.)
+2. Include quantifiable metrics where possible (%, $, time saved, team size)
+3. Highlight outcomes and impact, not just responsibilities
+4. Use industry-relevant keywords for ATS optimization
+5. Keep the same meaning but make it more compelling
+6. Maximum 2-3 sentences for descriptions, 1 sentence for single items
+7. Use present tense for current positions, past tense for previous ones
+
+Return ONLY the improved text. No explanations, quotes, or additional formatting.
+`;
+
+  const result = await generateWithRetry(prompt);
+
+  if (!result.success) {
+    throw new Error("Failed to improve content. Please try again.");
   }
+
+  return result.text.trim();
 }

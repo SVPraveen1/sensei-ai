@@ -119,13 +119,26 @@ export default function Quiz() {
   }
 
   const question = quizData[currentQuestion];
+  const progressPercent = ((currentQuestion + 1) / quizData.length) * 100;
 
   return (
     <Card className="mx-2">
       <CardHeader>
-        <CardTitle>
-          Question {currentQuestion + 1} of {quizData.length}
-        </CardTitle>
+        <div className="flex justify-between items-center mb-2">
+          <CardTitle>
+            Question {currentQuestion + 1} of {quizData.length}
+          </CardTitle>
+          <span className="text-sm text-muted-foreground">
+            {Math.round(progressPercent)}% complete
+          </span>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full bg-muted rounded-full h-2">
+          <div
+            className="bg-primary h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-lg font-medium">{question.question}</p>

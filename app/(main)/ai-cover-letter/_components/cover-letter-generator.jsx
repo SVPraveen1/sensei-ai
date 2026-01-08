@@ -47,7 +47,7 @@ export default function CoverLetterGenerator() {
       router.push(`/ai-cover-letter/${generatedLetter.id}`);
       reset();
     }
-  }, [generatedLetter]);
+  }, [generatedLetter, router, reset]);
 
   const onSubmit = async (data) => {
     try {
@@ -71,10 +71,10 @@ export default function CoverLetterGenerator() {
             {/* Form fields remain the same */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name</Label>
+                <Label htmlFor="companyName">Company Name *</Label>
                 <Input
                   id="companyName"
-                  placeholder="Enter company name"
+                  placeholder="e.g., Google, Microsoft, Netflix"
                   {...register("companyName")}
                 />
                 {errors.companyName && (
@@ -85,10 +85,10 @@ export default function CoverLetterGenerator() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="jobTitle">Job Title</Label>
+                <Label htmlFor="jobTitle">Job Title *</Label>
                 <Input
                   id="jobTitle"
-                  placeholder="Enter job title"
+                  placeholder="e.g., Senior Software Engineer"
                   {...register("jobTitle")}
                 />
                 {errors.jobTitle && (
@@ -100,11 +100,16 @@ export default function CoverLetterGenerator() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jobDescription">Job Description</Label>
+              <Label htmlFor="jobDescription">
+                Job Description *
+                <span className="text-xs text-muted-foreground ml-2">
+                  (Paste the full job posting for best results)
+                </span>
+              </Label>
               <Textarea
                 id="jobDescription"
-                placeholder="Paste the job description here"
-                className="h-32"
+                placeholder="Paste the complete job description here. Include responsibilities, requirements, and any specific skills or qualifications mentioned. The AI will tailor your cover letter to match these requirements."
+                className="h-40"
                 {...register("jobDescription")}
               />
               {errors.jobDescription && (
