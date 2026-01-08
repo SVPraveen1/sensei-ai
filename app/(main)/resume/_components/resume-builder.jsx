@@ -139,7 +139,6 @@ export default function ResumeBuilder({ initialContent }) {
         .replace(/\n\s*\n/g, "\n\n") // Normalize multiple newlines to double newlines
         .trim();
 
-      console.log(previewContent, formattedContent);
       await saveResumeFn(previewContent);
     } catch (error) {
       console.error("Save error:", error);
@@ -196,14 +195,19 @@ export default function ResumeBuilder({ initialContent }) {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Contact Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Contact Information</h3>
+              <div>
+                <h3 className="text-lg font-medium">Contact Information</h3>
+                <p className="text-sm text-muted-foreground">
+                  Add your contact details for recruiters to reach you
+                </p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
+                  <label className="text-sm font-medium">Email *</label>
                   <Input
                     {...register("contactInfo.email")}
                     type="email"
-                    placeholder="your@email.com"
+                    placeholder="john.doe@email.com"
                     error={errors.contactInfo?.email}
                   />
                   {errors.contactInfo?.email && (
@@ -213,11 +217,11 @@ export default function ResumeBuilder({ initialContent }) {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Mobile Number</label>
+                  <label className="text-sm font-medium">Phone Number</label>
                   <Input
                     {...register("contactInfo.mobile")}
                     type="tel"
-                    placeholder="+91 1234567890"
+                    placeholder="+1 (555) 123-4567"
                   />
                   {errors.contactInfo?.mobile && (
                     <p className="text-sm text-red-500">
@@ -226,11 +230,13 @@ export default function ResumeBuilder({ initialContent }) {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">LinkedIn URL</label>
+                  <label className="text-sm font-medium">
+                    LinkedIn Profile
+                  </label>
                   <Input
                     {...register("contactInfo.linkedin")}
                     type="url"
-                    placeholder="https://linkedin.com/in/your-profile"
+                    placeholder="https://linkedin.com/in/johndoe"
                   />
                   {errors.contactInfo?.linkedin && (
                     <p className="text-sm text-red-500">
@@ -240,16 +246,16 @@ export default function ResumeBuilder({ initialContent }) {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    Your website/ Portofolio URL
+                    Portfolio / GitHub
                   </label>
                   <Input
                     {...register("contactInfo.portfolio")}
                     type="url"
-                    placeholder="https://protfolio.com"
+                    placeholder="https://github.com/johndoe"
                   />
-                  {errors.contactInfo?.twitter && (
+                  {errors.contactInfo?.portfolio && (
                     <p className="text-sm text-red-500">
-                      {errors.contactInfo.twitter.message}
+                      {errors.contactInfo.portfolio.message}
                     </p>
                   )}
                 </div>
@@ -258,7 +264,13 @@ export default function ResumeBuilder({ initialContent }) {
 
             {/* Summary */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Professional Summary</h3>
+              <div>
+                <h3 className="text-lg font-medium">Professional Summary *</h3>
+                <p className="text-sm text-muted-foreground">
+                  Write 2-4 sentences highlighting your experience, skills, and
+                  career goals
+                </p>
+              </div>
               <Controller
                 name="summary"
                 control={control}
@@ -266,7 +278,7 @@ export default function ResumeBuilder({ initialContent }) {
                   <Textarea
                     {...field}
                     className="h-32"
-                    placeholder="Write a compelling professional summary..."
+                    placeholder="Results-driven software engineer with 5+ years of experience building scalable web applications. Proficient in React, Node.js, and cloud technologies. Passionate about creating user-centric products that solve real-world problems. Seeking to leverage my expertise in a challenging senior developer role."
                     error={errors.summary}
                   />
                 )}
@@ -278,7 +290,13 @@ export default function ResumeBuilder({ initialContent }) {
 
             {/* Skills */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Skills</h3>
+              <div>
+                <h3 className="text-lg font-medium">Technical Skills *</h3>
+                <p className="text-sm text-muted-foreground">
+                  List your skills organized by category (use markdown for
+                  formatting)
+                </p>
+              </div>
               <Controller
                 name="skills"
                 control={control}
@@ -286,7 +304,10 @@ export default function ResumeBuilder({ initialContent }) {
                   <Textarea
                     {...field}
                     className="h-32"
-                    placeholder="List your key skills..."
+                    placeholder="**Languages:** JavaScript, TypeScript, Python, Java
+**Frontend:** React, Next.js, Vue.js, Tailwind CSS
+**Backend:** Node.js, Express, PostgreSQL, MongoDB
+**Tools:** Git, Docker, AWS, CI/CD"
                     error={errors.skills}
                   />
                 )}
