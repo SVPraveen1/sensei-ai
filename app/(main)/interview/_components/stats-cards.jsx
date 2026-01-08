@@ -13,7 +13,8 @@ export default function StatsCards({ assessments }) {
 
   const getLatestAssessment = () => {
     if (!assessments?.length) return null;
-    return assessments[0];
+    // Return the last assessment (newest) since they're ordered by createdAt ascending
+    return assessments[assessments.length - 1];
   };
 
   const getTotalQuestions = () => {

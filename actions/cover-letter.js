@@ -1,79 +1,85 @@
 "use server";
 
 import { db } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getCurrentUser } from "@/lib/db-utils";
+import { generateWithRetry } from "@/lib/ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+/**
+ * Generate a personalized cover letter using AI
+ * Enhanced prompt for more compelling, tailored letters
+ */
 export async function generateCoverLetter(data) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  const { user } = await getCurrentUser();
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
+  const currentYear = new Date().getFullYear();
+  const skillsList = user.skills?.join(", ") || "various professional skills";
 
-  if (!user) throw new Error("User not found");
+  // Get industry context for more relevant letters
+  const industryTrends =
+    user.industryInsight?.keyTrends?.slice(0, 3).join(", ") || "";
 
   const prompt = `
-    Write a professional cover letter for a ${data.jobTitle} position at ${
-    data.companyName
-  }.
-    
-    About the candidate:
-    - Industry: ${user.industry}
-    - Years of Experience: ${user.experience}
-    - Skills: ${user.skills?.join(", ")}
-    - Professional Background: ${user.bio}
-    
-    Job Description:
-    ${data.jobDescription}
-    
-    Requirements:
-    1. Use a professional, enthusiastic tone
-    2. Highlight relevant skills and experience
-    3. Show understanding of the company's needs
-    4. Keep it concise (max 400 words)
-    5. Use proper business letter formatting in markdown
-    6. Include specific examples of achievements
-    7. Relate candidate's background to job requirements
-    
-    Format the letter in markdown.
-  `;
+You are a professional career consultant helping craft compelling cover letters.
 
-  try {
-    const result = await model.generateContent(prompt);
-    const content = result.response.text().trim();
+Write a cover letter for the following position:
 
-    const coverLetter = await db.coverLetter.create({
-      data: {
-        content,
-        jobDescription: data.jobDescription,
-        companyName: data.companyName,
-        jobTitle: data.jobTitle,
-        status: "completed",
-        userId: user.id,
-      },
-    });
+POSITION DETAILS:
+- Company: ${data.companyName}
+- Job Title: ${data.jobTitle}
+- Job Description: ${data.jobDescription}
 
-    return coverLetter;
-  } catch (error) {
-    console.error("Error generating cover letter:", error.message);
-    throw new Error("Failed to generate cover letter");
+CANDIDATE PROFILE:
+- Industry: ${user.industry}
+- Experience: ${user.experience || "Several"} years
+- Key Skills: ${skillsList}
+- Background: ${
+    user.bio || "Experienced professional seeking new opportunities"
   }
-}
 
-export async function getCoverLetters() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+WRITING REQUIREMENTS:
+1. Opening: Hook the reader with enthusiasm and a specific connection to the company/role
+2. Body (2 paragraphs):
+   - Highlight 2-3 most relevant skills/experiences that match the job
+   - Include a specific achievement or example that demonstrates capability
+   - Reference industry trends if relevant: ${
+     industryTrends || "current market needs"
+   }
+3. Closing: Strong call to action expressing genuine interest
+4. Tone: Professional yet personable, confident but not arrogant
+5. Length: 300-400 words maximum
+6. Format: Use markdown with proper business letter structure
 
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
+Include placeholders like [Your Name], [Your Phone], [Your Email] for personal details.
+Current year for dates: ${currentYear}
+`;
+
+  const result = await generateWithRetry(prompt);
+
+  if (!result.success) {
+    throw new Error("Failed to generate cover letter. Please try again.");
+  }
+
+  const content = result.text.trim();
+
+  const coverLetter = await db.coverLetter.create({
+    data: {
+      content,
+      jobDescription: data.jobDescription,
+      companyName: data.companyName,
+      jobTitle: data.jobTitle,
+      status: "completed",
+      userId: user.id,
+    },
   });
 
-  if (!user) throw new Error("User not found");
+  return coverLetter;
+}
+
+/**
+ * Get all cover letters for the current user
+ */
+export async function getCoverLetters() {
+  const { user } = await getCurrentUser({ includeInsight: false });
 
   return await db.coverLetter.findMany({
     where: {
@@ -85,15 +91,11 @@ export async function getCoverLetters() {
   });
 }
 
+/**
+ * Get a specific cover letter by ID
+ */
 export async function getCoverLetter(id) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) throw new Error("User not found");
+  const { user } = await getCurrentUser({ includeInsight: false });
 
   return await db.coverLetter.findUnique({
     where: {
@@ -103,15 +105,11 @@ export async function getCoverLetter(id) {
   });
 }
 
+/**
+ * Delete a cover letter
+ */
 export async function deleteCoverLetter(id) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) throw new Error("User not found");
+  const { user } = await getCurrentUser({ includeInsight: false });
 
   return await db.coverLetter.delete({
     where: {
@@ -121,15 +119,11 @@ export async function deleteCoverLetter(id) {
   });
 }
 
+/**
+ * Edit and regenerate a cover letter
+ */
 export async function editCoverLetter(id, data) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  const user = await db.user.findUnique({
-    where: { clerkUserId: userId },
-  });
-
-  if (!user) throw new Error("User not found");
+  const { user } = await getCurrentUser();
 
   // Verify the cover letter belongs to the user
   const existingLetter = await db.coverLetter.findUnique({
@@ -141,55 +135,67 @@ export async function editCoverLetter(id, data) {
 
   if (!existingLetter) throw new Error("Cover letter not found");
 
+  const currentYear = new Date().getFullYear();
+  const skillsList = user.skills?.join(", ") || "various professional skills";
+  const industryTrends =
+    user.industryInsight?.keyTrends?.slice(0, 3).join(", ") || "";
+
   const prompt = `
-    Write a professional cover letter for a ${data.jobTitle} position at ${
-    data.companyName
-  }.
-    
-    About the candidate:
-    - Industry: ${user.industry}
-    - Years of Experience: ${user.experience}
-    - Skills: ${user.skills?.join(", ")}
-    - Professional Background: ${user.bio}
-    
-    Job Description:
-    ${data.jobDescription}
-    
-    Requirements:
-    1. Use a professional, enthusiastic tone
-    2. Highlight relevant skills and experience
-    3. Show understanding of the company's needs
-    4. Keep it concise (max 400 words)
-    5. Use proper business letter formatting in markdown
-    6. Include specific examples of achievements
-    7. Relate candidate's background to job requirements
-    
-    Format the letter in markdown.
-  `;
+You are a professional career consultant helping craft compelling cover letters.
 
-  try {
-    const result = await model.generateContent(prompt);
-    const content = result.response.text().trim();
+Write a cover letter for the following position:
 
-    const updatedCoverLetter = await db.coverLetter.update({
-      where: {
-        id,
-        userId: user.id,
-      },
-      data: {
-        content,
-        jobDescription: data.jobDescription,
-        companyName: data.companyName,
-        jobTitle: data.jobTitle,
-        status: "completed",
-      },
-    });
+POSITION DETAILS:
+- Company: ${data.companyName}
+- Job Title: ${data.jobTitle}
+- Job Description: ${data.jobDescription}
 
-    return updatedCoverLetter;
-  } catch (error) {
-    console.error("Error updating cover letter:", error.message);
-    throw new Error("Failed to update cover letter");
+CANDIDATE PROFILE:
+- Industry: ${user.industry}
+- Experience: ${user.experience || "Several"} years
+- Key Skills: ${skillsList}
+- Background: ${
+    user.bio || "Experienced professional seeking new opportunities"
   }
-}
 
-// "dev": "next dev --turbopack",
+WRITING REQUIREMENTS:
+1. Opening: Hook the reader with enthusiasm and a specific connection to the company/role
+2. Body (2 paragraphs):
+   - Highlight 2-3 most relevant skills/experiences that match the job
+   - Include a specific achievement or example that demonstrates capability
+   - Reference industry trends if relevant: ${
+     industryTrends || "current market needs"
+   }
+3. Closing: Strong call to action expressing genuine interest
+4. Tone: Professional yet personable, confident but not arrogant
+5. Length: 300-400 words maximum
+6. Format: Use markdown with proper business letter structure
+
+Include placeholders like [Your Name], [Your Phone], [Your Email] for personal details.
+Current year for dates: ${currentYear}
+`;
+
+  const result = await generateWithRetry(prompt);
+
+  if (!result.success) {
+    throw new Error("Failed to update cover letter. Please try again.");
+  }
+
+  const content = result.text.trim();
+
+  const updatedCoverLetter = await db.coverLetter.update({
+    where: {
+      id,
+      userId: user.id,
+    },
+    data: {
+      content,
+      jobDescription: data.jobDescription,
+      companyName: data.companyName,
+      jobTitle: data.jobTitle,
+      status: "completed",
+    },
+  });
+
+  return updatedCoverLetter;
+}
